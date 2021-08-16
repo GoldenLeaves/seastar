@@ -54,3 +54,5 @@ add_subdirectory (io_tester)
 add_subdirectory (iotune)
 add_subdirectory (memcached)
 add_subdirectory (seawreck)
+
+add_subdirectory (external_thread_pool_demo)
