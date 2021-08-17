@@ -87,21 +87,17 @@ public:
     static void stop();
 
     template <typename T, typename Func>
-    static seastar::future<T> submit_work(Func func, const bool create_worker_if_fail_acquire = true) {
-        return seastar::do_with(wt_pointer(),
-                [func=std::move(func), create_worker_if_fail_acquire] (wt_pointer &wp) mutable {
-            return seastar::futurize_invoke([&wp, create_worker_if_fail_acquire] {
+    static seastar::future<T> submit_work(Func func) {
+        return seastar::do_with(wt_pointer(), [func=std::move(func)] (wt_pointer &wp) mutable {
+            return seastar::futurize_invoke([&wp] {
                 if (!_threads->pop(wp.d)) {
-                    if (create_worker_if_fail_acquire && _worker_num < _queue_length) {
+                    if (_worker_num < _queue_length) {
                         wp.d = new work_thread(_worker_num++);
                         return seastar::make_ready_future<>();
                     }
                     return seastar::repeat([&wp] {
-                        return seastar::sleep(std::chrono::microseconds(
-                            _sleep_duration_in_microseconds)).then([&wp] {
-                            return _threads->pop(wp.d)
-                                ? seastar::stop_iteration::yes
-                                : seastar::stop_iteration::no;
+                        return seastar::sleep(std::chrono::microseconds(_sleep_duration_in_microseconds)).then([&wp] {
+                            return _threads->pop(wp.d) ? seastar::stop_iteration::yes : seastar::stop_iteration::no;
                         });
                     });
                 }
