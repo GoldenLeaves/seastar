@@ -12,14 +12,12 @@ class demo_app;
 class micro_system {
     boost::optional<seastar::reactor::poller> _my_thread_pool_poller = {};
 public:
-    micro_system() = default;
-    ~micro_system() = default;
+    static seastar::future<> configure();
     void exit();
 private:
     void register_pollers();
     void deregister_pollers();
     void clear_micro_system();
-
     friend class demo_app;
 };
 

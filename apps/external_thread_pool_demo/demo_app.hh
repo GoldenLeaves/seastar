@@ -15,6 +15,4 @@ public:
         : _app(std::move(cfg)) {}
 
     int run(int ac, char **av, std::function<void()> &&func);
-private:
-    static seastar::future<> configure();
 };

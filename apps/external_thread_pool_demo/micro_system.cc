@@ -27,6 +27,14 @@ void micro_system::clear_micro_system() {
     my_thread_pool::stop();
 }
 
+seastar::future<> micro_system::configure() {
+    my_thread_pool::configure();
+    return seastar::smp::invoke_on_all([] {
+        allocate_micro_engine();
+        micro_engine().register_pollers();
+    });
+}
+
 void micro_system::exit() {
     clear_micro_system();
     seastar::engine().exit(0);
