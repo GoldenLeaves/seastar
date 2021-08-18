@@ -4,7 +4,6 @@
 
 #include "demo_app.hh"
 #include "my_thread_pool.hh"
-#include <seastar/core/print.hh>
 #include <seastar/core/reactor.hh>
 #include <seastar/core/sleep.hh>
 

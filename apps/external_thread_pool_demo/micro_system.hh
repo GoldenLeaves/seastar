@@ -7,8 +7,6 @@
 
 #include <seastar/core/reactor.hh>
 
-class demo_app;
-
 class micro_system {
     boost::optional<seastar::reactor::poller> _my_thread_pool_poller = {};
 public:
@@ -18,7 +16,6 @@ private:
     void register_pollers();
     void deregister_pollers();
     void clear_micro_system();
-    friend class demo_app;
 };
 
 extern __thread micro_system *local_micro_engine;
