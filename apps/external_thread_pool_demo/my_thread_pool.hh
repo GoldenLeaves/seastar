@@ -80,7 +80,6 @@ class my_thread_pool {
     struct wt_pointer {
         work_thread* d;
         wt_pointer() : d(nullptr) {}
-        wt_pointer(wt_pointer&& other) noexcept : d(other.d) {}
     };
 public:
     static void configure();
@@ -89,7 +88,7 @@ public:
     template <typename T, typename Func>
     static seastar::future<T> submit_work(Func func) {
         return seastar::do_with(wt_pointer(), [func=std::move(func)] (wt_pointer &wp) mutable {
-            return seastar::futurize_invoke([&wp] {
+            return [&wp] {
                 if (!_threads->pop(wp.d)) {
                     if (_worker_num < _queue_length) {
                         wp.d = new work_thread(_worker_num++);
@@ -102,7 +101,7 @@ public:
                     });
                 }
                 return seastar::make_ready_future<>();
-            }).then([&wp, func=std::move(func)] () mutable {
+            }().then([&wp, func=std::move(func)] () mutable {
                 return wp.d->submit<T>(seastar::local_engine, std::move(func));
             });
         });

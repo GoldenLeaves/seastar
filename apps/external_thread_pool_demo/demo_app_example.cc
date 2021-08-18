@@ -16,21 +16,18 @@ int main(int argc, char** argv) {
         return seastar::parallel_for_each(boost::irange<unsigned>(0u, seastar::smp::count), [] (unsigned id) {
             return seastar::smp::submit_to(id, [id] {
                 return my_thread_pool::submit_work<int>([id] {
-                    fmt::print("I'm working in my_thread! from micro_engine {} \n", id);
+                    seastar::seastar_logger.info("I'm working in my_thread! from micro_engine {} \n", id);
                     return id * id;
                 }).then_wrapped([id] (seastar::future<int> fut) {
                     try{
-                        fmt::print("Micro_engine {} got the result {} from my_thread.\n", id, fut.get0());
+                        seastar::seastar_logger.info("Micro_engine {} got the result {} from my_thread.\n", id, fut.get0());
                     } catch (std::exception& ex) {
-                        fmt::print("Exception: {}\n", ex.what());
+                        seastar::seastar_logger.error("Exception: {}\n", ex.what());
                     }
                 });
             });
         }).then([] {
-            fmt::print("start to sleep.\n");
-            return seastar::sleep(1s);
-        }).then([] {
-            fmt::print("exit.\n");
+            seastar::seastar_logger.info("exit.\n");
             micro_engine().exit();
         });
     });
