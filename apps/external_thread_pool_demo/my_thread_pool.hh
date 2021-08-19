@@ -82,14 +82,14 @@ public:
 
     template <typename T, typename Func>
     static seastar::future<T> submit_work(Func func) {
-        return seastar::repeat_until_value([] () -> std::optional<work_thread*> {
+        return seastar::repeat_until_value([] {
             work_thread* wt = nullptr;
             if (_threads->pop(wt)) {
-                return wt;
+                return seastar::make_ready_future<std::optional<work_thread*>>(wt);
             }
             return seastar::sleep(std::chrono::microseconds(_sleep_duration_in_microseconds)).then([] {
-                return std::nullopt;
-            }).get0();
+                return std::optional<work_thread*>(std::nullopt);
+            });
         }).then([func = std::move(func)] (work_thread* wt) {
             return wt->submit<T>(seastar::local_engine, std::move(func));
         });
