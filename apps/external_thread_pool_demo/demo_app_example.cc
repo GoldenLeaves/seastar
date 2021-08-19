@@ -26,6 +26,8 @@ int main(int argc, char** argv) {
                 });
             });
         }).then([] {
+            return micro_engine().stop();
+        }).then([] {
             seastar::seastar_logger.info("exit.\n");
             micro_engine().exit();
         });

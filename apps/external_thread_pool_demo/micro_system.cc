@@ -6,6 +6,8 @@
 #include "micro_system.hh"
 #include "my_thread_pool.hh"
 
+bool micro_system::_stopped = false;
+
 void micro_system::register_pollers() {
     _my_thread_pool_poller = seastar::reactor::poller(std::make_unique<my_thread_pool_pollfn>());
 }
@@ -19,6 +21,7 @@ seastar::future<> micro_system::stop() {
         micro_engine().deregister_pollers();
     }).then([] {
         my_thread_pool::stop();
+        micro_system::_stopped = true;
     });
 }
 
@@ -31,9 +34,8 @@ seastar::future<> micro_system::configure() {
 }
 
 void micro_system::exit() {
-    (void)stop().then([] {
-        seastar::engine().exit(0);
-    });
+    assert(_stopped);
+    seastar::engine().exit(0);
 }
 
 struct mirco_engine_deleter {
