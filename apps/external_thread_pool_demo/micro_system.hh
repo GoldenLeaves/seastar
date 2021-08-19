@@ -15,10 +15,10 @@ public:
 private:
     void register_pollers();
     void deregister_pollers();
-    void clear_micro_system();
+    seastar::future<> stop();
 };
 
-extern __thread micro_system *local_micro_engine;
+extern thread_local micro_system *local_micro_engine;
 
 void allocate_micro_engine();
 

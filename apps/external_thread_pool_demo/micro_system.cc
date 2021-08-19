@@ -14,17 +14,12 @@ void micro_system::deregister_pollers() {
     _my_thread_pool_poller = {};
 }
 
-void micro_system::clear_micro_system() {
-    micro_engine().deregister_pollers();
-    (void)seastar::do_with(seastar::semaphore(0), [] (seastar::semaphore& sem) {
-        (void)seastar::smp::invoke_on_others(seastar::this_shard_id(), [] {
-            micro_engine().deregister_pollers();
-        }).then([&sem] {
-            sem.signal();
-        });
-        return sem.wait(seastar::smp::count - 1);
+seastar::future<> micro_system::stop() {
+    return seastar::smp::invoke_on_all([] {
+        micro_engine().deregister_pollers();
+    }).then([] {
+        my_thread_pool::stop();
     });
-    my_thread_pool::stop();
 }
 
 seastar::future<> micro_system::configure() {
@@ -36,8 +31,9 @@ seastar::future<> micro_system::configure() {
 }
 
 void micro_system::exit() {
-    clear_micro_system();
-    seastar::engine().exit(0);
+    (void)stop().then([] {
+        seastar::engine().exit(0);
+    });
 }
 
 struct mirco_engine_deleter {
@@ -47,8 +43,8 @@ struct mirco_engine_deleter {
     }
 };
 
-__thread micro_system* local_micro_engine{nullptr};
-thread_local std::unique_ptr<class micro_system, mirco_engine_deleter> mirco_engine_holder;
+thread_local micro_system* local_micro_engine{nullptr};
+thread_local std::unique_ptr<micro_system, mirco_engine_deleter> mirco_engine_holder;
 
 void allocate_micro_engine() {
     assert(!mirco_engine_holder);
