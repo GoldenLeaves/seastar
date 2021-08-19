@@ -47,7 +47,6 @@ void work_thread::work(unsigned int worker_id) {
     }
 }
 
-unsigned my_thread_pool::_queue_length = 16;
 unsigned my_thread_pool::_worker_num = 4;
 int64_t my_thread_pool::_sleep_duration_in_microseconds = 500;
 std::unique_ptr<boost::lockfree::queue<work_thread*>> my_thread_pool::_threads;
@@ -65,10 +64,10 @@ void my_thread_pool::atomic_flag_deleter::operator()(std::atomic<bool> *flags) c
 void my_thread_pool::configure() {
     // Create completed queues
     _completed = decltype(my_thread_pool::_completed){
-        reinterpret_cast<completed_queue*>(operator new[] (sizeof(completed_queue{_queue_length}) * seastar::smp::count)),
+        reinterpret_cast<completed_queue*>(operator new[] (sizeof(completed_queue{_worker_num}) * seastar::smp::count)),
         completed_queue_deleter{}};
     for (unsigned i = 0; i < seastar::smp::count; i++) {
-        new (&my_thread_pool::_completed[i]) completed_queue(_queue_length);
+        new (&my_thread_pool::_completed[i]) completed_queue(_worker_num);
     }
     // Create reactor idle flags
     _reactors_idle = decltype(my_thread_pool::_reactors_idle){
@@ -78,7 +77,7 @@ void my_thread_pool::configure() {
         new (&my_thread_pool::_reactors_idle[i]) std::atomic<bool>(false);
     }
     // Create initial work threads
-    _threads = std::make_unique<boost::lockfree::queue<work_thread*>>(_queue_length);
+    _threads = std::make_unique<boost::lockfree::queue<work_thread*>>(_worker_num);
     for (unsigned i = 0; i < _worker_num; i++) {
         _threads->push(new work_thread(i));
     }

@@ -64,7 +64,6 @@ private:
 class my_thread_pool_pollfn;
 
 class my_thread_pool {
-    static unsigned _queue_length;
     static unsigned _worker_num;
     static int64_t _sleep_duration_in_microseconds;
     static std::unique_ptr<boost::lockfree::queue<work_thread*>> _threads;
@@ -77,33 +76,22 @@ class my_thread_pool {
         void operator()(std::atomic<bool>* flags) const;
     };
     static std::unique_ptr<std::atomic<bool>[], atomic_flag_deleter> _reactors_idle;
-    struct wt_pointer {
-        work_thread* d;
-        wt_pointer() : d(nullptr) {}
-    };
 public:
     static void configure();
     static void stop();
 
     template <typename T, typename Func>
     static seastar::future<T> submit_work(Func func) {
-        return seastar::do_with(wt_pointer(), [func=std::move(func)] (wt_pointer &wp) mutable {
-            return [&wp] {
-                if (!_threads->pop(wp.d)) {
-                    if (_worker_num < _queue_length) {
-                        wp.d = new work_thread(_worker_num++);
-                        return seastar::make_ready_future<>();
-                    }
-                    return seastar::repeat([&wp] {
-                        return seastar::sleep(std::chrono::microseconds(_sleep_duration_in_microseconds)).then([&wp] {
-                            return _threads->pop(wp.d) ? seastar::stop_iteration::yes : seastar::stop_iteration::no;
-                        });
-                    });
-                }
-                return seastar::make_ready_future<>();
-            }().then([&wp, func=std::move(func)] () mutable {
-                return wp.d->submit<T>(seastar::local_engine, std::move(func));
+        return seastar::repeat_until_value([] () -> seastar::future<std::optional<work_thread*>> {
+            work_thread* wt = nullptr;
+            if (_threads->pop(wt)) {
+                return seastar::make_ready_future<std::optional<work_thread*>>(wt);
+            }
+            return seastar::sleep(std::chrono::microseconds(_sleep_duration_in_microseconds)).then([] {
+                return seastar::make_ready_future<std::optional<work_thread*>>(std::nullopt);
             });
+        }).then([func = std::move(func)] (work_thread* wt) {
+            return wt->submit<T>(seastar::local_engine, std::move(func));
         });
     }
 
